@@ -1,4 +1,4 @@
-const { EModelEndpoint } = require('librechat-data-provider');
+const { isAssistantsEndpoint } = require('librechat-data-provider');
 const { sendMessage, sendError, countTokens, isEnabled } = require('~/server/utils');
 const { truncateText, smartTruncateText } = require('~/app/clients/prompts');
 const { saveMessage, getConvo, getConvoTitle } = require('~/models');
@@ -15,7 +15,7 @@ async function abortMessage(req, res) {
     abortKey = conversationId;
   }
 
-  if (endpoint === EModelEndpoint.assistants) {
+  if (isAssistantsEndpoint(endpoint)) {
     return await abortRun(req, res);
   }
 
@@ -73,6 +73,8 @@ const createAbortController = (req, res, getAbortData) => {
       ...responseData,
       conversationId,
       finish_reason: 'incomplete',
+      endpoint: endpointOption.endpoint,
+      iconURL: endpointOption.iconURL,
       model: endpointOption.modelOptions.model,
       unfinished: false,
       error: false,

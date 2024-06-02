@@ -15,7 +15,7 @@ const AppService = require('./services/AppService');
 const noIndex = require('./middleware/noIndex');
 const { isEnabled } = require('~/server/utils');
 const { logger } = require('~/config');
-
+const { ldapLogin } = require('~/strategies');
 const routes = require('./routes');
 
 const { PORT, HOST, ALLOW_SOCIAL_LOGIN } = process.env ?? {};
@@ -60,6 +60,11 @@ const startServer = async () => {
   passport.use(await jwtLogin());
   passport.use(passportLogin());
 
+  // LDAP Auth
+  if (process.env.LDAP_URL && process.env.LDAP_BIND_DN && process.env.LDAP_USER_SEARCH_BASE) {
+    passport.use(ldapLogin);
+  }
+
   if (isEnabled(ALLOW_SOCIAL_LOGIN)) {
     configureSocialLogins(app);
   }
@@ -85,6 +90,7 @@ const startServer = async () => {
   app.use('/api/assistants', routes.assistants);
   app.use('/api/files', await routes.files.initialize());
   app.use('/images/', validateImageRequest, routes.staticRoute);
+  app.use('/api/share', routes.share);
 
   app.use((req, res) => {
     res.status(404).sendFile(path.join(app.locals.paths.dist, 'index.html'));
