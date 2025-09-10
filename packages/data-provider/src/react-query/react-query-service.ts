@@ -191,6 +191,29 @@ export const useGetModelsQuery = (
   });
 };
 
+export const useFetchUserModelsMutation = (): UseMutationResult<
+  { endpoint: string; models: string[]; tokenConfig?: any },
+  unknown,
+  { endpoint: string },
+  unknown
+> => {
+  const queryClient = useQueryClient();
+  return useMutation((payload: { endpoint: string }) => dataService.fetchUserModels(payload), {
+    onSuccess: (data, variables) => {
+      // Update the models cache with the newly fetched models
+      queryClient.setQueryData([QueryKeys.models], (oldData: t.TModelsConfig | undefined) => {
+        if (!oldData) {
+          return oldData;
+        }
+        return {
+          ...oldData,
+          [variables.endpoint]: data.models,
+        };
+      });
+    },
+  });
+};
+
 export const useCreatePresetMutation = (): UseMutationResult<
   s.TPreset,
   unknown,

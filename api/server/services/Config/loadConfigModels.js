@@ -68,20 +68,32 @@ async function loadConfigModels(req) {
 
     modelsConfig[name] = [];
 
-    if (models.fetch && !isUserProvided(API_KEY) && !isUserProvided(BASE_URL)) {
-      fetchPromisesMap[uniqueKey] =
-        fetchPromisesMap[uniqueKey] ||
-        fetchModels({
-          name,
-          apiKey: API_KEY,
-          baseURL: BASE_URL,
-          user: req.user.id,
-          direct: endpoint.directEndpoint,
-          userIdQuery: models.userIdQuery,
-        });
-      uniqueKeyToEndpointsMap[uniqueKey] = uniqueKeyToEndpointsMap[uniqueKey] || [];
-      uniqueKeyToEndpointsMap[uniqueKey].push(name);
-      continue;
+    if (models.fetch && !isUserProvided(BASE_URL)) {
+      // For user-provided API keys, we still want to fetch models when possible
+      // But we need to handle the case where the key might not be available yet
+      if (!isUserProvided(API_KEY)) {
+        // Non-user-provided key - fetch normally
+        fetchPromisesMap[uniqueKey] =
+          fetchPromisesMap[uniqueKey] ||
+          fetchModels({
+            name,
+            apiKey: API_KEY,
+            baseURL: BASE_URL,
+            user: req.user.id,
+            direct: endpoint.directEndpoint,
+            userIdQuery: models.userIdQuery,
+          });
+        uniqueKeyToEndpointsMap[uniqueKey] = uniqueKeyToEndpointsMap[uniqueKey] || [];
+        uniqueKeyToEndpointsMap[uniqueKey].push(name);
+        continue;
+      } else {
+        // User-provided API key - we can't fetch at startup, but we'll prepare for later fetching
+        // For now, just use default models if available
+        if (Array.isArray(models.default)) {
+          modelsConfig[name] = models.default;
+        }
+        continue;
+      }
     }
 
     if (Array.isArray(models.default)) {

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LibreChat Dynamic Models Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .log { max-height: 300px; overflow-y: auto; background: #000; color: #0f0; padding: 10px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🔍 LibreChat Dynamic Models Debug Test</h1>
+    <p>Use this page to test dynamic model fetching functionality.</p>
+
+    <div id="results"></div>
+
+    <div class="test-section info">
+        <h3>📋 Instructions</h3>
+        <ol>
+            <li>Login to LibreChat in another tab</li>
+            <li>Copy the JWT token from browser storage</li>
+            <li>Paste it in the field below</li>
+            <li>Run the tests</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>🔑 JWT Token</h3>
+        <input type="text" id="jwtToken" placeholder="Paste JWT token here" size="50">
+        <p><small>Get token from: Application → Local Storage → token (or similar)</small></p>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 API Tests</h3>
+        <button onclick="testHealth()">Test Health</button>
+        <button onclick="testModels()">Test Models</button>
+        <button onclick="testFetch()">Test Fetch</button>
+        <button onclick="testWithAuth()">Test With Auth</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h3>📝 Debug Log</h3>
+        <div id="debugLog" class="log"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let jwtToken = '';
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('debugLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' :
+                         type === 'success' ? '#51cf66' :
+                         type === 'warning' ? '#ffd43b' : '#74c0fc';
+            logDiv.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateToken() {
+            jwtToken = document.getElementById('jwtToken').value.trim();
+        }
+
+        document.getElementById('jwtToken').addEventListener('input', updateToken);
+
+        async function makeRequest(url, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+
+            if (jwtToken) {
+                defaultOptions.headers['Authorization'] = `Bearer ${jwtToken}`;
+            }
+
+            const finalOptions = { ...defaultOptions, ...options };
+            finalOptions.headers = { ...defaultOptions.headers, ...options.headers };
+
+            try {
+                log(`Making request to: ${url}`);
+                const response = await fetch(url, finalOptions);
+                log(`Response status: ${response.status}`);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Response data: ${JSON.stringify(data, null, 2)}`, 'success');
+                    return { success: true, data, status: response.status };
+                } else {
+                    const errorText = await response.text();
+                    log(`Error response: ${errorText}`, 'error');
+                    return { success: false, error: errorText, status: response.status };
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function testHealth() {
+            log('=== Testing Health Endpoint ===');
+            const result = await makeRequest(`${API_BASE}/api/health`);
+            if (result.success) {
+                log('✅ Health check passed', 'success');
+            } else {
+                log('❌ Health check failed', 'error');
+            }
+        }
+
+        async function testModels() {
+            log('=== Testing Models Endpoint ===');
+            const result = await makeRequest(`${API_BASE}/api/models`);
+            if (result.status === 401) {
+                log('✅ Models endpoint requires auth (expected)', 'success');
+            } else if (result.success) {
+                log('✅ Models endpoint returned data', 'success');
+            } else {
+                log('❌ Models endpoint failed', 'error');
+            }
+        }
+
+        async function testFetch() {
+            log('=== Testing Fetch Endpoint ===');
+            const result = await makeRequest(`${API_BASE}/api/models/fetch`, {
+                method: 'POST',
+                body: JSON.stringify({ endpoint: 'LiteLLM' })
+            });
+
+            if (result.status === 401) {
+                log('✅ Fetch endpoint requires auth (expected)', 'success');
+            } else if (result.success) {
+                log('✅ Fetch endpoint returned data', 'success');
+                if (result.data.models && result.data.models.length > 0) {
+                    log(`🎉 Successfully fetched ${result.data.models.length} models!`, 'success');
+                }
+            } else {
+                log('❌ Fetch endpoint failed', 'error');
+            }
+        }
+
+        async function testWithAuth() {
+            if (!jwtToken) {
+                log('❌ Please enter JWT token first', 'error');
+                return;
+            }
+
+            log('=== Testing With Authentication ===');
+
+            // Test models endpoint
+            const modelsResult = await makeRequest(`${API_BASE}/api/models`);
+            if (modelsResult.success) {
+                log('✅ Models endpoint authenticated successfully', 'success');
+            }
+
+            // Test fetch endpoint
+            const fetchResult = await makeRequest(`${API_BASE}/api/models/fetch`, {
+                method: 'POST',
+                body: JSON.stringify({ endpoint: 'LiteLLM' })
+            });
+
+            if (fetchResult.success) {
+                log('✅ Fetch endpoint authenticated successfully', 'success');
+                if (fetchResult.data.models) {
+                    log(`🎉 Dynamic model fetching working! Got ${fetchResult.data.models.length} models`, 'success');
+                }
+            } else if (fetchResult.status === 400) {
+                log('⚠️  Fetch failed - check if API key is set for this user', 'warning');
+            } else {
+                log('❌ Fetch endpoint failed with auth', 'error');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('debugLog').innerHTML = '';
+        }
+
+        // Auto-detect token from localStorage if available
+        function autoDetectToken() {
+            try {
+                // Try common localStorage keys
+                const possibleKeys = ['token', 'accessToken', 'jwt', 'authToken'];
+                for (const key of possibleKeys) {
+                    const token = localStorage.getItem(key);
+                    if (token && token.length > 20) {
+                        document.getElementById('jwtToken').value = token;
+                        jwtToken = token;
+                        log(`🔑 Auto-detected token from localStorage.${key}`, 'success');
+                        break;
+                    }
+                }
+            } catch (e) {
+                log('Could not auto-detect token from localStorage', 'warning');
+            }
+        }
+
+        // Initialize
+        log('🔍 Debug page loaded');
+        log(`API Base: ${API_BASE}`);
+        autoDetectToken();
+    </script>
+</body>
+</html>

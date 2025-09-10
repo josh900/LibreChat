@@ -4,7 +4,6 @@ const { getLogStores } = require('~/cache');
 const { logger } = require('~/config');
 const { fetchModels } = require('~/server/services/ModelService');
 const { getUserKeyValues } = require('~/server/services/UserService');
-const { getCustomEndpointConfig } = require('@librechat/api');
 
 /**
  * @param {ServerRequest} req
@@ -56,6 +55,8 @@ async function modelController(req, res) {
  * @param {ServerResponse} res - The Express response object
  */
 async function fetchUserModelsController(req, res) {
+  console.log('[Dynamic Model Fetch] Controller called with endpoint:', req.body?.endpoint);
+
   try {
     const { endpoint: endpointName } = req.body;
 
@@ -63,19 +64,10 @@ async function fetchUserModelsController(req, res) {
       return res.status(400).send({ error: 'Endpoint name is required' });
     }
 
-    // Get the endpoint configuration
-    const endpointConfig = getCustomEndpointConfig({
-      endpoint: endpointName,
-      appConfig: req.config,
-    });
-
-    if (!endpointConfig) {
-      return res.status(404).send({ error: `Endpoint ${endpointName} not found` });
-    }
-
-    // Check if this endpoint supports model fetching
-    if (!endpointConfig.models?.fetch) {
-      return res.status(400).send({ error: `Endpoint ${endpointName} does not support model fetching` });
+    // For now, we'll hardcode support for LiteLLM endpoint
+    // In the future, this could be extended to support other endpoints
+    if (endpointName !== 'LiteLLM') {
+      return res.status(400).send({ error: `Endpoint ${endpointName} does not support dynamic model fetching` });
     }
 
     // Get user-provided keys
@@ -85,15 +77,16 @@ async function fetchUserModelsController(req, res) {
     });
 
     const apiKey = userValues?.apiKey;
-    const baseURL = userValues?.baseURL || endpointConfig.baseURL;
+    
+    // Use the hardcoded LiteLLM baseURL since we know it from librechat.yaml
+    const baseURL = 'https://litellm.skoop.digital/v1';
 
     if (!apiKey) {
+      console.log('[Dynamic Model Fetch] No API key found for user:', req.user.id);
       return res.status(400).send({ error: 'API key not provided for this endpoint' });
     }
 
-    if (!baseURL) {
-      return res.status(400).send({ error: 'Base URL not available for this endpoint' });
-    }
+    console.log(`[Dynamic Model Fetch] Fetching models for user ${req.user.id} from ${baseURL}`);
 
     // Create user-specific cache key
     const cache = getLogStores(CacheKeys.TOKEN_CONFIG);
@@ -106,9 +99,11 @@ async function fetchUserModelsController(req, res) {
       name: endpointName,
       user: req.user.id,
       tokenKey,
-      direct: endpointConfig.directEndpoint,
-      userIdQuery: endpointConfig.models.userIdQuery,
+      direct: false, // LiteLLM doesn't need direct mode
+      userIdQuery: false
     });
+
+    console.log(`[Dynamic Model Fetch] Successfully fetched ${models.length} models for endpoint ${endpointName}`);
 
     // Cache the token config
     const endpointTokenConfig = await cache.get(tokenKey);
@@ -121,9 +116,11 @@ async function fetchUserModelsController(req, res) {
     });
 
   } catch (error) {
+    console.error('[Dynamic Model Fetch] Error fetching user models:', error);
     logger.error('Error fetching user models:', error);
     res.status(500).send({ error: error.message });
   }
 }
 
 module.exports = { modelController, loadModels, getModelsConfig, fetchUserModelsController };
+

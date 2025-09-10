@@ -128,6 +128,8 @@ export const aiEndpoints = () => `${BASE_URL}/api/endpoints`;
 
 export const models = () => `${BASE_URL}/api/models`;
 
+export const fetchUserModels = () => `${BASE_URL}/api/models/fetch`;
+
 export const tokenizer = () => `${BASE_URL}/api/tokenizer`;
 
 export const login = () => `${BASE_URL}/api/auth/login`;

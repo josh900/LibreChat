@@ -8,6 +8,7 @@ import {
   useAgentsMap,
   useFileMap,
 } from '~/hooks';
+import useAutoModelRefresh from '~/hooks/Input/useAutoModelRefresh';
 import {
   PromptGroupsProvider,
   AssistantsMapContext,
@@ -33,6 +34,9 @@ export default function Root() {
 
   // Global health check - runs once per authenticated session
   useHealthCheck(isAuthenticated);
+
+  // Auto-refresh models for user-provided endpoints
+  useAutoModelRefresh();
 
   const assistantsMap = useAssistantsMap({ isAuthenticated });
   const agentsMap = useAgentsMap({ isAuthenticated });

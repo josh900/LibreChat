@@ -182,6 +182,10 @@ export const getModels = async (): Promise<t.TModelsConfig> => {
   return request.get(endpoints.models());
 };
 
+export const fetchUserModels = async (payload: { endpoint: string }): Promise<{ endpoint: string; models: string[]; tokenConfig?: any }> => {
+  return request.post(endpoints.fetchUserModels(), payload);
+};
+
 /* Assistants */
 
 export const createAssistant = ({
