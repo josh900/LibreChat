@@ -4,7 +4,7 @@ set -euo pipefail
 # ============
 # Editable Vars
 # ============
-DOMAIN="chat4.skoop.digital"
+DOMAIN="chat3.skoop.digital"
 ADMIN_EMAIL="admin1@skoopsignage.com"   # change if desired
 REPO_URL="https://github.com/danny-avila/LibreChat.git"
 APP_DIR="$HOME/LibreChat"
